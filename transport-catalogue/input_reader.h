@@ -37,7 +37,6 @@ namespace transport_catalogue::query {
         ParseDistances(std::vector<std::string_view> vec_input);
 
         void ParseCommandString(std::string input);
-
     };
 
     inline std::vector<std::string_view> Split(std::string_view string, char delim);
@@ -48,7 +47,7 @@ namespace transport_catalogue::query {
 
         void LoadCommand(TransportCatalogue &tc, Command command, bool dist);
 
-        void ParseInput();
+        void ParseInput(std::istream &in);
 
     private:
         std::vector<Command> commands_;

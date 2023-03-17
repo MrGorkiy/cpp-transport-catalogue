@@ -138,13 +138,13 @@ namespace transport_catalogue::query {
         }
     }
 
-    void InputReader::ParseInput() {
+    void InputReader::ParseInput(std::istream& in) {
         int query_count;
-        cin >> query_count;
-        cin.ignore();
+        in >> query_count;
+        in.ignore();
         for (int i = 0; i < query_count; ++i) {
             string command;
-            getline(cin, command);
+            getline(in, command);
             Command cur_command;
             cur_command.ParseCommandString(std::move(command));
             commands_.emplace_back(std::move(cur_command));
@@ -186,16 +186,11 @@ namespace transport_catalogue::query {
                             tc.SetStopDistance(command.name, stoull(string(dist)), stop);
                         }
                     }
-                } else {
-                    output::OutputStopAbout(tc, command.name);
                 }
-
                 break;
             case QueryType::BusX:
                 if (!command.route.empty()) {
                     tc.AddRoute(command.name, command.route_type, command.route);
-                } else {
-                    output::OutputRouteAbout(tc, command.name);
                 }
                 break;
         }

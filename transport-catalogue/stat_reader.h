@@ -6,10 +6,12 @@
 
 namespace transport_catalogue::output {
 
-    void OutputRouteAbout(TransportCatalogue &tc, std::string_view route);
+    void OutputRouteAbout(std::ostream& out, TransportCatalogue &tc, std::string_view route);
 
-    void OutputStopAbout(TransportCatalogue &tc, std::string_view name);
+    void OutputStopAbout(std::ostream& out, TransportCatalogue &tc, std::string_view name);
 
-    void OutputAbout(TransportCatalogue &tc, const query::Command &command);
+    void OutputAbout(std::ostream& out, TransportCatalogue &tc, const query::Command &command);
+
+    void ProcessRequests(std::ostream& out, TransportCatalogue& catalogue);
 
 }//transport_catalogue
