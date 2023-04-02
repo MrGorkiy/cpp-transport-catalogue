@@ -1,17 +1,12 @@
-#include "input_reader.h"
-#include "stat_reader.h"
+#include <iostream>
 #include "transport_catalogue.h"
+#include "json_reader.h"
 
-using namespace std;
 using namespace transport_catalogue;
-using namespace query;
-using namespace output;
 
 int main() {
     TransportCatalogue tc;
-    InputReader ir;
-    ir.ParseInput(std::cin);
-    ir.Load(tc);
-    ProcessRequests(cout, tc);
-    return 0;
+    JsonReader reader(tc);
+    reader.ReadJsonAndFillTransportCatalogue(std::cin);
+    reader.QueryTC_WriteJsonToStream(std::cout);
 }
