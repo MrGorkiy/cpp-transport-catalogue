@@ -28,9 +28,9 @@ public:
 
     size_t ReadJsonAndFillTransportCatalogue(std::istream &input);
 
-    size_t QueryTC_WriteJsonToStream(std::ostream &out);
+    size_t QueryTcWriteJsonToStream(std::ostream &out);
 
-    size_t ReadJson_QueryTC_WriteJsonToStream(std::istream &input, std::ostream &out);
+    size_t ReadJsonQueryTcWriteJsonToStream(std::istream &input, std::ostream &out);
 
     RendererSettings GetRendererSetting() const;
 

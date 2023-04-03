@@ -155,7 +155,7 @@ bool JsonReader::FillTransportCatalogue() {
 }
 
 
-size_t JsonReader::QueryTC_WriteJsonToStream(std::ostream &out) {
+size_t JsonReader::QueryTcWriteJsonToStream(std::ostream &out) {
     const auto &root_node = root_.back().GetRoot();
     if (!root_node.IsMap()) {
         throw json::ParsingError("Error reading JSON data with user requests to database.");
@@ -179,9 +179,9 @@ size_t JsonReader::QueryTC_WriteJsonToStream(std::ostream &out) {
     return result.size();
 }
 
-size_t JsonReader::ReadJson_QueryTC_WriteJsonToStream(std::istream &input, std::ostream &out) {
+size_t JsonReader::ReadJsonQueryTcWriteJsonToStream(std::istream &input, std::ostream &out) {
     ReadJson(input);
-    return QueryTC_WriteJsonToStream(out);
+    return QueryTcWriteJsonToStream(out);
 }
 
 json::Node JsonReader::ProcessOneUserRequestNode(const json::Node &user_request) {

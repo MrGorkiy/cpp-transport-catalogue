@@ -9,7 +9,7 @@ svg::Point SphereProjector::operator()(geo::Coordinates coords) const {
     };
 }
 
-void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, std::ostream &out) {
+void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, svg::Document& svg_doc) {
     // Все маршруты и все остановки на маршрутах
     const std::map<std::string_view, const transport_catalogue::Stop *> stops = tc.GetAllStopsIndex();
     stops_ = &stops;
@@ -26,17 +26,20 @@ void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc
     const std::map<std::string_view, const transport_catalogue::BusRoute *> routes = tc.GetAllRoutesIndex();
     routes_ = &routes;
 
-    svg::Document svg_doc;
     RenderLines(svg_doc);
     RenderRouteNames(svg_doc);
     RenderStopCircles(tc, svg_doc);
     RenderStopNames(tc, svg_doc);
 
-    svg_doc.Render(out);
-
     stops_ = nullptr;
     routes_ = nullptr;
     projector_ = nullptr;
+}
+
+void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, std::ostream& out) {
+    svg::Document svg_doc;
+    RenderSvgMap(tc, svg_doc);
+    svg_doc.Render(out);
 }
 
 svg::Color MapRenderer::GetNextPalleteColor(size_t &color_count) const {
@@ -52,7 +55,6 @@ svg::Color MapRenderer::GetPalletColor(size_t route_number) const {
 
     return settings_.color_palette[index];
 }
-
 
 void MapRenderer::RenderLines(svg::Document &svg_doc) const {
     const auto &routes = *routes_; // используем ссылку вместо копирования

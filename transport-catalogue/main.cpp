@@ -8,5 +8,5 @@ int main() {
     TransportCatalogue tc;
     JsonReader reader(tc);
     reader.ReadJsonAndFillTransportCatalogue(std::cin);
-    reader.QueryTC_WriteJsonToStream(std::cout);
+    reader.QueryTcWriteJsonToStream(std::cout);
 }
