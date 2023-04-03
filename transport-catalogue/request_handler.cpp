@@ -1,4 +1,5 @@
 #include "request_handler.h"
+
 //
 //std::optional<BusInfo> RequestHandler::GetBusStat(const std::string_view &bus_name) const {
 //    BusInfo bi = db_.GetBusInfo(bus_name);
