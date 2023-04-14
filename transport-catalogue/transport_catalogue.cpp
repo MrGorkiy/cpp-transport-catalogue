@@ -18,7 +18,7 @@ namespace transport_catalogue {
         const Stop *ptr = &stops_.emplace_back(stop);
 
         std::string_view stop_name(
-                ptr->stop_name);
+                ptr->stop_name); // string_view must point to permanent string, that will not disappear.
         stops_index_.emplace(stop_name, ptr);
     }
 
@@ -70,9 +70,12 @@ namespace transport_catalogue {
             auto second = std::next(first);
             if (second == route.route_stops.end()) break;
 
+            // compute the shortest distance by the straight line
             length_geo += ComputeDistance((**first).coordinates, (**second).coordinates);
 
+            // compute the road length
             length_meters += GetDistanceBetweenStops((**first).stop_name, (**second).stop_name);
+            // if it is a way and back route, add the back distance, which may be different from direct distance
             if (route.type == RouteType::RETURN_ROUTE) {
                 length_meters += GetDistanceBetweenStops((**second).stop_name, (**first).stop_name);
             }
@@ -106,8 +109,9 @@ namespace transport_catalogue {
         auto iter_stop = stops_index_.find(stop);
         auto iter_other = stops_index_.find(other_stop);
         if (iter_stop == stops_index_.end() || iter_other == stops_index_.end())
-            return false;
+            return false; // one of stops is not present in the catalogue
 
+        // insert direct pair without any check. it is either first insert or value substitute.
         StopsPointers direct{};
         direct.stop = iter_stop->second;
         direct.other = iter_other->second;
@@ -116,9 +120,11 @@ namespace transport_catalogue {
         StopsPointers reverse{};
         reverse.stop = direct.other;
         reverse.other = direct.stop;
-
+        // for the reverse pair, let's check if it already exists
         auto iter_rev = stops_distance_index_.find(reverse);
         if (iter_rev == stops_distance_index_.end()) {
+            // insert the reverse pair if it does not exist
+            // if exists, it means that the distance might be different for the direct and reverse
             stops_distance_index_[reverse] = dist;
         }
 
@@ -149,5 +155,6 @@ namespace transport_catalogue {
         std::map<std::string_view, const Stop *> result(stops_index_.begin(), stops_index_.end());
         return result;
     }
+
 
 } // transport_catalogue namespace

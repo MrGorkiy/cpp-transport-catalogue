@@ -3,10 +3,11 @@
 #include "json_reader.h"
 
 using namespace transport_catalogue;
+using namespace std::literals;
 
 int main() {
     TransportCatalogue tc;
     JsonReader reader(tc);
-    reader.ReadJsonAndFillTransportCatalogue(std::cin);
+    reader.ReadJsonToTransportCatalogue(std::cin);
     reader.QueryTcWriteJsonToStream(std::cout);
 }

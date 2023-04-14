@@ -3,82 +3,103 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <variant>
-#include <vector>
 #include <utility>
+#include <vector>
+#include <variant>
 
 namespace json {
 
     class Node;
+
     using Dict = std::map<std::string, Node>;
     using Array = std::vector<Node>;
 
+    Node LoadNumber(std::istream &input);
+
+    Node LoadString(std::istream &input);
+
+    // Эта ошибка должна выбрасываться при ошибках парсинга JSON
     class ParsingError : public std::runtime_error {
     public:
         using runtime_error::runtime_error;
     };
 
-    class Node final : private std::variant<std::nullptr_t, Array, Dict, bool, int, double, std::string> {
+
+    class Node : public std::variant<std::nullptr_t, int, double, std::string, bool, Array, Dict> {
     public:
         using variant::variant;
         using Value = variant;
 
+        const Value &GetValue() const { return *this; }
+
         bool IsInt() const;
-        int AsInt() const;
+
+        bool IsDouble() const;
 
         bool IsPureDouble() const;
-        bool IsDouble() const;
-        double AsDouble() const;
 
         bool IsBool() const;
-        bool AsBool() const;
+
+        bool IsString() const;
 
         bool IsNull() const;
 
         bool IsArray() const;
-        const Array& AsArray() const;
 
-        bool IsString() const;
-        const std::string& AsString() const;
+        bool IsDict() const;
 
-        bool IsMap() const;
-        const Dict& AsMap() const;
+        int AsInt() const;
 
-        bool operator==(const Node& rhs) const {
-            return GetValue() == rhs.GetValue();
-        }
+        bool AsBool() const;
 
-        const Value& GetValue() const;
+        double AsDouble() const;
+
+        const std::string &AsString() const;
+
+        const Array &AsArray() const;
+
+        const Dict &AsDict() const;
+
+        Array &AsArray();
+
+        Dict &AsDict();
+
     };
-
-    inline bool operator!=(const Node& lhs, const Node& rhs) {
-        return !(lhs == rhs);
-    }
 
     class Document {
     public:
-        explicit Document(Node root)
-                : root_(std::move(root)) {
-        }
+        explicit Document(Node root);
 
-        const Node& GetRoot() const {
-            return root_;
-        }
+        const Node &GetRoot() const;
+
+        bool operator==(const Document &other) const;
+
+        bool operator!=(const Document &other) const;
 
     private:
         Node root_;
     };
 
-    inline bool operator==(const Document& lhs, const Document& rhs) {
-        return lhs.GetRoot() == rhs.GetRoot();
+    Document Load(std::istream &input);
+
+    void Print(const Document &doc, std::ostream &output);
+
+    template<typename Value>
+    void PrintValue(const Value &value, std::ostream &out) {
+        out << value;
     }
 
-    inline bool operator!=(const Document& lhs, const Document& rhs) {
-        return !(lhs == rhs);
-    }
+    void PrintValue(const std::string &str, std::ostream &out);
 
-    Document Load(std::istream& input);
+    void PrintValue(std::nullptr_t, std::ostream &out);
 
-    void Print(const Document& doc, std::ostream& output);
+    void PrintValue(bool val, std::ostream &out);
+
+    void PrintValue(const Array &arr, std::ostream &out);
+
+    void PrintValue(const Dict &dict, std::ostream &out);
+
+    void PrintNode(const Node &node, std::ostream &out);
+
 
 }  // namespace json

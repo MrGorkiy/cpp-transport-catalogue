@@ -1,12 +1,11 @@
 #pragma once
 
-#include "geo.h"
-
 #include <string>
+#include "geo.h"
 #include <vector>
 #include <set>
 
-namespace domain {
+namespace transport_catalogue {
 
     struct Stop {
         std::string stop_name;
@@ -50,4 +49,4 @@ namespace domain {
 
     std::ostream &operator<<(std::ostream &os, const BusInfo &bi);
 
-} //namespace domain
+}

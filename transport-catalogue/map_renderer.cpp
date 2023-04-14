@@ -9,11 +9,12 @@ svg::Point SphereProjector::operator()(geo::Coordinates coords) const {
     };
 }
 
-void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, svg::Document& svg_doc) {
-    // Все маршруты и все остановки на маршрутах
+void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc) {
+    // get all routes and all stops of the routes
     const std::map<std::string_view, const transport_catalogue::Stop *> stops = tc.GetAllStopsIndex();
     stops_ = &stops;
 
+    // prepare data for SphereProjector init
     std::vector<geo::Coordinates> all_route_stops_coordinates;
     for (const auto &stop: stops) {
         if (tc.GetBusesForStop(stop.first).empty()) continue;
@@ -36,10 +37,12 @@ void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc
     projector_ = nullptr;
 }
 
-void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, std::ostream& out) {
+
+void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, std::ostream &out) {
     svg::Document svg_doc;
     RenderSvgMap(tc, svg_doc);
     svg_doc.Render(out);
+    return;
 }
 
 svg::Color MapRenderer::GetNextPalleteColor(size_t &color_count) const {
@@ -57,35 +60,32 @@ svg::Color MapRenderer::GetPalletColor(size_t route_number) const {
 }
 
 void MapRenderer::RenderLines(svg::Document &svg_doc) const {
-    const auto &routes = *routes_; // используем ссылку вместо копирования
-    const auto &projector = *projector_; // используем ссылку вместо копирования
     size_t color_count = 0;
-    for (const auto &[_, route]: routes) { // используем C++17 structured binding
-        if (route->route_stops.empty()) continue;
+    auto projector = *projector_;
+    for (const auto route: *routes_) {
+        if (route.second->route_stops.empty()) continue;
         svg::Color palette_color = GetNextPalleteColor(color_count);
 
         svg::Polyline line;
-        line.SetStrokeColor(palette_color)
-                .SetFillColor({})
-                .SetStrokeWidth(settings_.line_width)
-                .SetStrokeLineCap(svg::StrokeLineCap::ROUND)
-                .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
+        line.SetStrokeColor(palette_color).SetFillColor({}).SetStrokeWidth(settings_.line_width)
+                .SetStrokeLineCap(svg::StrokeLineCap::ROUND).SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
 
-        for (const auto &stop: route->route_stops) {
-            line.AddPoint(projector(stop->coordinates));
+
+        for (auto route_stop : route.second->route_stops) {
+            line.AddPoint(projector(route_stop->coordinates));
         }
-        if (route->type == transport_catalogue::RouteType::RETURN_ROUTE) {
-            for (auto back_iter = route->route_stops.rbegin() + 1;
-                 back_iter != route->route_stops.rend(); ++back_iter) {
+        if (route.second->type == transport_catalogue::RouteType::RETURN_ROUTE) {
+            for (auto back_iter = std::next(route.second->route_stops.rbegin());
+                 back_iter != route.second->route_stops.rend(); ++back_iter) {
                 line.AddPoint(projector((*back_iter)->coordinates));
             }
         }
-        svg_doc.Add(std::move(line));
+        svg_doc.Add(line);
     }
-
 }
 
 void MapRenderer::RenderRouteNames(svg::Document &svg_doc) const {
+    using namespace std::literals;
     auto projector = *projector_;
     size_t color_count = 0;
 
@@ -96,10 +96,10 @@ void MapRenderer::RenderRouteNames(svg::Document &svg_doc) const {
 
         name_start_text.SetData(std::string{route.first})
                 .SetPosition(projector(route.second->route_stops.front()->coordinates))
-                .SetOffset(settings_.bus_label_offset).SetFontSize(settings_.bus_label_font_size)
-                .SetFontFamily("Verdana")
-                .SetFontWeight("bold")
-                .SetFillColor(GetNextPalleteColor(color_count));
+                .SetOffset(settings_.bus_label_offset)
+                .SetFontSize(settings_.bus_label_font_size)
+                .SetFontFamily("Verdana"s)
+                .SetFontWeight("bold"s).SetFillColor(GetNextPalleteColor(color_count));
 
         svg::Text name_start_plate = name_start_text;
         name_start_plate.SetFillColor(settings_.underlayer_color)

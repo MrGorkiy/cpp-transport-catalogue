@@ -19,4 +19,6 @@ add_executable(Sprint11Topic2Lesson14 transport-catalogue/main.cpp
         transport-catalogue/svg.cpp
         transport-catalogue/svg.h
         transport-catalogue/transport_catalogue.cpp
-        transport-catalogue/transport_catalogue.h)
+        transport-catalogue/transport_catalogue.h
+        transport-catalogue/json_builder.cpp
+        transport-catalogue/json_builder.h)

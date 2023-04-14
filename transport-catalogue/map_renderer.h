@@ -11,6 +11,7 @@
 #include <vector>
 
 inline const double EPSILON = 1e-6;
+
 inline bool IsZero(double value) {
     return std::abs(value) < EPSILON;
 }
@@ -18,7 +19,7 @@ inline bool IsZero(double value) {
 class SphereProjector {
 public:
     // points_begin и points_end задают начало и конец интервала элементов geo::Coordinates
-    template <typename PointInputIt>
+    template<typename PointInputIt>
     SphereProjector(PointInputIt points_begin, PointInputIt points_end,
                     double max_width, double max_height, double padding)
             : padding_(padding) //
@@ -98,27 +99,31 @@ struct RendererSettings {
     std::vector<svg::Color> color_palette;
 };
 
-
-
-
-class MapRenderer{
+class MapRenderer {
 public:
-    explicit MapRenderer(const RendererSettings& rs) : settings_(rs) {
+    explicit MapRenderer(const RendererSettings &rs) : settings_(rs) {
     }
 
-    void RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, svg::Document& svg_doc);
-    void RenderSvgMap(const transport_catalogue::TransportCatalogue& tc, std::ostream& out);
+    void RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, std::ostream &out);
+
+    void RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc);
+
 
 private:
-    const RendererSettings& settings_;
-    SphereProjector* projector_ = nullptr;
-    const std::map<std::string_view, const transport_catalogue::BusRoute*>* routes_ = nullptr;
-    const std::map<std::string_view, const transport_catalogue::Stop*>* stops_ = nullptr;
+    const RendererSettings &settings_;
+    SphereProjector *projector_ = nullptr;
+    const std::map<std::string_view, const transport_catalogue::BusRoute *> *routes_ = nullptr;
+    const std::map<std::string_view, const transport_catalogue::Stop *> *stops_ = nullptr;
 
     svg::Color GetNextPalleteColor(size_t &color_count) const;
+
     svg::Color GetPalletColor(size_t route_number) const;
-    void RenderLines(svg::Document& svg_doc) const;
-    void RenderRouteNames(svg::Document& svg_doc) const;
-    void RenderStopCircles(const transport_catalogue::TransportCatalogue& tc, svg::Document& svg_doc) const;
-    void RenderStopNames(const transport_catalogue::TransportCatalogue& tc, svg::Document& svg_doc) const;
+
+    void RenderLines(svg::Document &svg_doc) const;
+
+    void RenderRouteNames(svg::Document &svg_doc) const;
+
+    void RenderStopCircles(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc) const;
+
+    void RenderStopNames(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc) const;
 };
