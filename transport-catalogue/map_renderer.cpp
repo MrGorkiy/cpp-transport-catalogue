@@ -2,13 +2,23 @@
 #include "domain.h"
 
 
+// Отображает координаты местности на плоскость в формате SVG.
 svg::Point SphereProjector::operator()(geo::Coordinates coords) const {
     return {
-            (coords.lng - min_lon_) * zoom_coeff_ + padding_,
-            (max_lat_ - coords.lat) * zoom_coeff_ + padding_
+            (coords.lng - min_lon_) * zoom_coeff_ + padding_, // широта
+            (max_lat_ - coords.lat) * zoom_coeff_ + padding_  // долгота
     };
 }
 
+/*
+ * Основная функция, отрисовывающая на карте линии маршрутов, названия маршрутов и остановок, а также окружности,
+ * обозначающие местоположения остановок. Внутри функции определены следующие шаги:
+ * - Получить индексы всех остановок и сохранить их в переменную stops.
+ * - Получить координаты всех остановок, принадлежащих какому-либо маршруту, и сохранить их в вектор all_route_stops_coordinates.
+ * - Произвести проекцию координат с помощью класса SphereProjector.
+ * - Получить индексы всех маршрутов и сохранить их в переменную routes.
+ * - Отрисовать на карте маршруты, остановки, названия маршрутов и остановок.
+ */
 void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc) {
     const std::map<std::string_view, const transport_catalogue::Stop *> stops = tc.GetAllStopsIndex();
     stops_ = &stops;
@@ -43,6 +53,7 @@ void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc
     return;
 }
 
+// Функция возвращает следующий цвет из заданной палитры. Если перебрали все цвета, цвет начинается с начала списка
 svg::Color MapRenderer::GetNextPalleteColor(size_t &color_count) const {
     if (color_count >= settings_.color_palette.size()) {
         color_count = 0;
@@ -50,6 +61,7 @@ svg::Color MapRenderer::GetNextPalleteColor(size_t &color_count) const {
     return settings_.color_palette[color_count++];
 }
 
+// Функция возвращает цвет, соответствующий заданному маршруту
 svg::Color MapRenderer::GetPalletColor(size_t route_number) const {
     if (routes_ == nullptr || route_number >= routes_->size()) return {};
     size_t index = route_number % settings_.color_palette.size();
@@ -57,7 +69,7 @@ svg::Color MapRenderer::GetPalletColor(size_t route_number) const {
     return settings_.color_palette[index];
 }
 
-
+// Функция отрисовывает маршруты на карте в виде линий
 void MapRenderer::RenderLines(svg::Document &svg_doc) const {
     size_t color_count = 0;
     auto projector = *projector_;
@@ -70,7 +82,7 @@ void MapRenderer::RenderLines(svg::Document &svg_doc) const {
                 .SetStrokeLineCap(svg::StrokeLineCap::ROUND).SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
 
 
-        for (auto route_stop : route.second->route_stops) {
+        for (auto route_stop: route.second->route_stops) {
             line.AddPoint(projector(route_stop->coordinates));
         }
         if (route.second->type == transport_catalogue::RouteType::RETURN_ROUTE) {
@@ -83,6 +95,7 @@ void MapRenderer::RenderLines(svg::Document &svg_doc) const {
     }
 }
 
+// Функция отрисовывает названия маршрутов на карте
 void MapRenderer::RenderRouteNames(svg::Document &svg_doc) const {
     using namespace std::literals;
     auto projector = *projector_;
@@ -121,6 +134,7 @@ void MapRenderer::RenderRouteNames(svg::Document &svg_doc) const {
     }
 }
 
+// Функция отрисовывает круги с центрами в координатах остановок на карте
 void MapRenderer::RenderStopCircles(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc) const {
     using namespace std::literals;
     auto projector = *projector_;
@@ -134,6 +148,7 @@ void MapRenderer::RenderStopCircles(const transport_catalogue::TransportCatalogu
     }
 }
 
+// Функция отрисовывает названия остановок на карте
 void MapRenderer::RenderStopNames(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc) const {
     using namespace std::literals;
     auto projector = *projector_;
