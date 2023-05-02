@@ -3,7 +3,7 @@ project(cpp_transport_catalogue)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(Sprint11Topic2Lesson14 transport-catalogue/main.cpp
+add_executable(cpp_transport_catalogue transport-catalogue/main.cpp
         transport-catalogue/domain.cpp
         transport-catalogue/domain.h
         transport-catalogue/geo.cpp
@@ -21,4 +21,10 @@ add_executable(Sprint11Topic2Lesson14 transport-catalogue/main.cpp
         transport-catalogue/transport_catalogue.cpp
         transport-catalogue/transport_catalogue.h
         transport-catalogue/json_builder.cpp
-        transport-catalogue/json_builder.h)
+        transport-catalogue/json_builder.h
+        transport-catalogue/transport_router.cpp
+        transport-catalogue/transport_router.h
+        transport-catalogue/graph.h
+        transport-catalogue/ranges.h
+        transport-catalogue/router.h
+        )

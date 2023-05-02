@@ -5,7 +5,7 @@ namespace svg {
 
     using namespace std::literals;
 
-    void Object::Render(const RenderContext& context) const {
+    void Object::Render(const RenderContext &context) const {
         context.RenderIndent();
 
         // Делегируем вывод тега своим подклассам
@@ -16,18 +16,18 @@ namespace svg {
 
 // ---------- Circle ------------------
 
-    Circle& Circle::SetCenter(Point center)  {
+    Circle &Circle::SetCenter(Point center) {
         center_ = center;
         return *this;
     }
 
-    Circle& Circle::SetRadius(double radius)  {
+    Circle &Circle::SetRadius(double radius) {
         radius_ = radius;
         return *this;
     }
 
-    void Circle::RenderObject(const RenderContext& context) const {
-        auto& out = context.out;
+    void Circle::RenderObject(const RenderContext &context) const {
+        auto &out = context.out;
         out << "<circle cx=\""sv << std::setprecision(6) << center_.x << "\" cy=\""sv << center_.y << "\" "sv;
         out << "r=\""sv << std::setprecision(6) << radius_ << "\""sv;
 
@@ -38,14 +38,14 @@ namespace svg {
 
 
 // ---------- Polyline ------------------
-    Polyline& Polyline::AddPoint(svg::Point point) {
+    Polyline &Polyline::AddPoint(svg::Point point) {
         points_.emplace_back(std::move(point));
 
         return *this;
     }
 
     void Polyline::RenderObject(const svg::RenderContext &context) const {
-        auto& out = context.out;
+        auto &out = context.out;
 
         out << "<polyline points=\""sv;
         for (auto iter = points_.begin(); iter != points_.end(); ++iter) {
@@ -65,44 +65,44 @@ namespace svg {
 
 // ---------- Text ------------------
 
-    Text& Text::SetPosition(Point pos) {
+    Text &Text::SetPosition(Point pos) {
         position_ = pos;
 
         return *this;
     }
 
-    Text& Text::SetOffset(Point offset) {
+    Text &Text::SetOffset(Point offset) {
         offset_ = offset;
 
         return *this;
     }
 
-    Text& Text::SetFontSize(uint32_t size) {
+    Text &Text::SetFontSize(uint32_t size) {
         font_size_ = size;
 
         return *this;
     }
 
-    Text& Text::SetFontFamily(std::string font_family) {
+    Text &Text::SetFontFamily(std::string font_family) {
         font_family_ = font_family;
 
         return *this;
     }
 
-    Text& Text::SetFontWeight(std::string font_weight) {
+    Text &Text::SetFontWeight(std::string font_weight) {
         font_weight_ = font_weight;
 
         return *this;
     }
 
-    Text& Text::SetData(std::string data) {
+    Text &Text::SetData(std::string data) {
         text_data_ = data;
 
         return *this;
     }
 
     void Text::RenderObject(const RenderContext &context) const {
-        auto& out = context.out;
+        auto &out = context.out;
         out << "<text"sv;
 
         RenderAttrs(out);
@@ -127,7 +127,7 @@ namespace svg {
         // end of text tag
         out << ">"sv;
 
-        for (char c : text_data_) {
+        for (char c: text_data_) {
             out << CheckAndScreenCharacter(c);
         }
 
@@ -139,19 +139,19 @@ namespace svg {
 
         switch (c) {
             case '\"':
-                out_c = "&quot;";
+                out_c = "&quot;"s;
                 break;
             case '\'':
-                out_c = "&apos;";
+                out_c = "&apos;"s;
                 break;
             case '<':
-                out_c = "&lt;";
+                out_c = "&lt;"s;
                 break;
             case '>':
-                out_c = "&gt;";
+                out_c = "&gt;"s;
                 break;
             case '&':
-                out_c = "&amp;";
+                out_c = "&amp;"s;
                 break;
             default:
                 out_c = c;
@@ -176,65 +176,76 @@ namespace svg {
 
 
 // ---------- StrokeLineCap ------------------
-    std::ostream& operator<<(std::ostream& out, const StrokeLineCap& slc) {
+    std::ostream &operator<<(std::ostream &out, const StrokeLineCap &slc) {
+        using namespace std::literals;
         switch (slc) {
             case StrokeLineCap::BUTT:
-                out << "butt";
+                out << "butt"s;
                 break;
             case StrokeLineCap::ROUND:
-                out << "round";
+                out << "round"s;
                 break;
             case StrokeLineCap::SQUARE:
-                out << "square";
+                out << "square"s;
                 break;
         }
+
         return out;
     }
 
 // ---------- StrokeLineJoin ------------------
-    std::ostream& operator<<(std::ostream& out, const StrokeLineJoin& slj) {
+    std::ostream &operator<<(std::ostream &out, const StrokeLineJoin &slj) {
+        using namespace std::literals;
         switch (slj) {
             case StrokeLineJoin::ARCS:
-                out << "arcs";
+                out << "arcs"s;
                 break;
             case StrokeLineJoin::BEVEL:
-                out << "bevel";
+                out << "bevel"s;
                 break;
             case StrokeLineJoin::MITER:
-                out << "miter";
+                out << "miter"s;
                 break;
             case StrokeLineJoin::MITER_CLIP:
-                out << "miter-clip";
+                out << "miter-clip"s;
                 break;
             case StrokeLineJoin::ROUND:
-                out << "round";
+                out << "round"s;
                 break;
         }
+
         return out;
     }
 
-    std::ostream& operator<<(std::ostream &out, const Rgb &color) {
-        out << "rgb(" << std::to_string(color.red) << "," << std::to_string(color.green) << "," << std::to_string(color.blue) << ")";
+    std::ostream &operator<<(std::ostream &out, const Rgb &color) {
+        using namespace std::literals;
+        out << "rgb("s << std::to_string(color.red) << ","s << std::to_string(color.green) << ","s
+            << std::to_string(color.blue) << ")"s;
         return out;
     }
 
-    std::ostream& operator<<(std::ostream &out, const Rgba &color) {
-        out << "rgba(" << std::to_string(color.red) << "," << std::to_string(color.green) << "," << std::to_string(color.blue) << "," << color.opacity << ")";
+    std::ostream &operator<<(std::ostream &out, const Rgba &color) {
+        using namespace std::literals;
+        out << "rgba("s << std::to_string(color.red) << ","s << std::to_string(color.green) << ","s
+            << std::to_string(color.blue) << ","s << color.opacity << ")"s;
         return out;
     }
 
-    std::ostream& operator<<(std::ostream& out, const Color& color) {
-        std::visit([&out](Color value){
-            if (std::holds_alternative<std::monostate>(value)){
+    std::ostream &operator<<(std::ostream &out, const Color &color) {
+        using namespace std::literals;
+
+        std::visit([&out](Color value) {
+            if (std::holds_alternative<std::monostate>(value)) {
                 out << NoneColor;
-            } else if (const auto* val1 = std::get_if<std::string>(&value)){
+            } else if (const auto *val1 = std::get_if<std::string>(&value)) {
                 out << *val1;
-            } else if (const auto* val2 = std::get_if<Rgb>(&value)) {
+            } else if (const auto *val2 = std::get_if<Rgb>(&value)) {
                 out << *val2;
-            } else if (const auto* val3 = std::get_if<Rgba>(&value)) {
+            } else if (const auto *val3 = std::get_if<Rgba>(&value)) {
                 out << *val3;
             }
         }, color);
+
         return out;
     }
 

@@ -10,11 +10,9 @@ svg::Point SphereProjector::operator()(geo::Coordinates coords) const {
 }
 
 void MapRenderer::RenderSvgMap(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc) {
-    // get all routes and all stops of the routes
     const std::map<std::string_view, const transport_catalogue::Stop *> stops = tc.GetAllStopsIndex();
     stops_ = &stops;
 
-    // prepare data for SphereProjector init
     std::vector<geo::Coordinates> all_route_stops_coordinates;
     for (const auto &stop: stops) {
         if (tc.GetBusesForStop(stop.first).empty()) continue;
@@ -59,6 +57,7 @@ svg::Color MapRenderer::GetPalletColor(size_t route_number) const {
     return settings_.color_palette[index];
 }
 
+
 void MapRenderer::RenderLines(svg::Document &svg_doc) const {
     size_t color_count = 0;
     auto projector = *projector_;
@@ -80,7 +79,7 @@ void MapRenderer::RenderLines(svg::Document &svg_doc) const {
                 line.AddPoint(projector((*back_iter)->coordinates));
             }
         }
-        svg_doc.Add(line);
+        svg_doc.Add(std::move(line));
     }
 }
 
@@ -99,7 +98,8 @@ void MapRenderer::RenderRouteNames(svg::Document &svg_doc) const {
                 .SetOffset(settings_.bus_label_offset)
                 .SetFontSize(settings_.bus_label_font_size)
                 .SetFontFamily("Verdana"s)
-                .SetFontWeight("bold"s).SetFillColor(GetNextPalleteColor(color_count));
+                .SetFontWeight("bold"s)
+                .SetFillColor(GetNextPalleteColor(color_count));
 
         svg::Text name_start_plate = name_start_text;
         name_start_plate.SetFillColor(settings_.underlayer_color)
@@ -122,18 +122,20 @@ void MapRenderer::RenderRouteNames(svg::Document &svg_doc) const {
 }
 
 void MapRenderer::RenderStopCircles(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc) const {
+    using namespace std::literals;
     auto projector = *projector_;
 
     for (const auto &stop: *stops_) {
         if (tc.GetBusesForStop(stop.first).empty()) continue;
         svg::Circle stop_circle;
         stop_circle.SetCenter(projector(stop.second->coordinates)).SetRadius(settings_.stop_radius).SetFillColor(
-                "white");
+                "white"s);
         svg_doc.Add(stop_circle);
     }
 }
 
 void MapRenderer::RenderStopNames(const transport_catalogue::TransportCatalogue &tc, svg::Document &svg_doc) const {
+    using namespace std::literals;
     auto projector = *projector_;
 
     for (const auto &stop: *stops_) {
@@ -141,14 +143,14 @@ void MapRenderer::RenderStopNames(const transport_catalogue::TransportCatalogue 
 
         svg::Text stop_name;
         stop_name.SetPosition(projector(stop.second->coordinates)).SetOffset(settings_.stop_label_offset)
-                .SetFontSize(settings_.stop_label_font_size).SetFontFamily("Verdana").SetData(std::string{stop.first});
+                .SetFontSize(settings_.stop_label_font_size).SetFontFamily("Verdana"s).SetData(std::string{stop.first});
 
         svg::Text stop_plate = stop_name;
         stop_plate.SetFillColor(settings_.underlayer_color).SetStrokeColor(settings_.underlayer_color).SetStrokeWidth(
                         settings_.underlayer_width)
                 .SetStrokeLineCap(svg::StrokeLineCap::ROUND).SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
 
-        stop_name.SetFillColor("black");
+        stop_name.SetFillColor("black"s);
 
         svg_doc.Add(stop_plate);
         svg_doc.Add(stop_name);

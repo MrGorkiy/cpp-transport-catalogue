@@ -285,6 +285,7 @@ namespace svg {
         // Выводит в ostream svg-представление документа
         void Render(std::ostream &out) const;
 
+    // Прочие методы и данные, необходимые для реализации класса Document
     private:
         std::vector<std::unique_ptr<Object>> objects_ptrs_;
     };
