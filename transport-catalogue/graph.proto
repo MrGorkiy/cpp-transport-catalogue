@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package t_r_srlz;
+
+message Edge {
+  uint64 from = 1;
+  uint64 to = 2;
+  double weight = 3;
+}
+
+message Graph {
+  uint64 vertex_count = 1;
+  repeated Edge edges = 2;
+}

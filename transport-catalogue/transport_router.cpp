@@ -1,194 +1,126 @@
 #include "transport_router.h"
 
+namespace TransportRouter {
+//----------------------------------------------------------------------------
+    void TransportRouter::CreateGraph(const TransportCatalogue::TransportCatalogue &db) {
+        graph::DirectedWeightedGraph<double> graph(db.GetStops().size());
+        id_stopes_.resize(db.GetStops().size());
+        for (const auto &bus: db.GetBuses()) {
 
-TransportCatalogueRouterGraph::TransportCatalogueRouterGraph(const transport_catalogue::TransportCatalogue &tc,
-                                                             RoutingSettings rs) :
-        graph::DirectedWeightedGraph<double>(tc.RawStopsIndex().size()), tc_(tc), rs_(rs) {
-
-    // Создание вершин графа из всех остановок транспорта.
-    const auto &routes_index = tc_.GetAllRoutesIndex();
-    for (const auto &[stop_name, stop_ptr]: tc_.RawStopsIndex()) {
-        StopOnRoute stop{0, stop_name, {}};
-        RegisterStop(stop);
+            for (auto it_from = bus.stops.begin(); it_from != bus.stops.end(); ++it_from) {
+                const Stop *stop_from = *it_from;
+                double lengh = 0;
+                const Stop *prev_stop = stop_from;
+                id_stopes_[stop_from->id] = stop_from->name;
+                for (auto it_to = std::next(it_from); it_to != bus.stops.end(); ++it_to) {
+                    const Stop *stop_to = *it_to;
+                    lengh += db.GetRangeStops(prev_stop, stop_to);
+                    prev_stop = stop_to;
+                    double time_on_bus = lengh / GetMetrMinFromKmH(routing_settings_.bus_velocity); // minute
+                    // вес ребра учитывает и ожидание и время в пути, чтобы учитывать затраты на пересадки
+                    graph.AddEdge({stop_from->id, stop_to->id, (time_on_bus + routing_settings_.bus_wait_time_minut)});
+                    // запоминает имя автобуса и количество прогонов между остановками
+                    edges_buses_.push_back({bus.name, static_cast<size_t>(std::distance(it_from, it_to))});
+                }
+            }
+        }
+        opt_graph_ = std::move(graph);
     }
 
-    // Заполнение графа связями между остановками на маршруте транспорта.
-    for (const auto &[_, bus_route]: routes_index) {
-        if (bus_route->type == transport_catalogue::RouteType::RETURN_ROUTE) {
-            FillWithReturnRouteStops(bus_route);
-        } else {
-            FillWithCircleRouteStops(bus_route);
+//----------------------------------------------------------------------------
+    std::optional<RoutStat> TransportRouter::GetRouteStat(size_t id_stop_from, size_t id_stop_to) const {
+        // попытка построить маршрут
+        const OptRouteInfo opt_route_info = GetRouter()->BuildRoute(id_stop_from, id_stop_to);
+        // проверка маршрута
+        if (!opt_route_info.has_value()) {
+            return std::nullopt;
+        }
+
+        const graph::Router<double>::RouteInfo &route_info = opt_route_info.value();
+        double total_time = route_info.weight;
+        // хранит данные для вывода в поток
+        std::vector<RoutStat::VariantItem> items;
+        for (const auto &edge_id: route_info.edges) {
+            // ребро по id
+            const auto &edge = opt_graph_.value().GetEdge(edge_id);
+            // номер автобуса едущий по этому ребру и количество прогонов в ребре
+            const auto [bus_num, span_count] = edges_buses_[edge_id];
+            items.push_back(RoutStat::ItemsWait{"Wait", static_cast<double>(routing_settings_.bus_wait_time_minut),
+                                                std::string(id_stopes_[edge.from])});
+            // вычитаем из веса время ожидания
+            items.push_back(
+                    RoutStat::ItemsBus{"Bus", edge.weight - static_cast<double>(routing_settings_.bus_wait_time_minut),
+                                       span_count, std::string(bus_num)});
+        }
+        return RoutStat{total_time, items};
+    }
+
+//----------------------------------------------------------------------------
+    bool TransportRouter::GetGraphIsNoInit() const {
+        return !opt_graph_.has_value();
+    }
+
+//----------------------------------------------------------------------------
+    void TransportRouter::vInit(RoutingSettings routing_settings_, const TransportCatalogue::TransportCatalogue &t_c) {
+        SetRoutingSettings(std::move(routing_settings_));
+        // создаем граф и маршрутизатор
+        if (GetGraphIsNoInit()) {
+            CreateGraph(t_c);
         }
     }
 
-    router_ptr_ = std::make_unique<graph::Router<double>>(*this);
-}
+//----------------------------------------------------------------------------
+    const std::vector<TransportRouter::EdgeAditionInfo> &TransportRouter::GetEdgesBuses() const {
+        return edges_buses_;
+    }
 
-// Функция заполнения графа связями между остановками на маршруте транспорта с обратным направлением
-void TransportCatalogueRouterGraph::FillWithReturnRouteStops(const transport_catalogue::BusRoute *bus_route) {
-    for (auto start = bus_route->route_stops.begin(); start != bus_route->route_stops.end(); ++start) {
-        size_t stop_distance = 1;
-        int accumulated_distance_direct = 0;
-        int accumulated_distance_reverse = 0;
+//----------------------------------------------------------------------------
+    const std::vector<std::string> &TransportRouter::GetIdStopes() const {
+        return id_stopes_;
+    }
 
-        const auto wait_time_at_stop = static_cast<double>(rs_.bus_wait_time);
+//----------------------------------------------------------------------------
+    const graph::DirectedWeightedGraph<double> &TransportRouter::GetGraph() const {
+        return opt_graph_.value();
+    }
 
-        auto from_id = GetStopVertexId((*start)->stop_name);
-        for (auto first = start, second = start + 1; second != bus_route->route_stops.end(); ++first, ++second) {
-            auto to_id = GetStopVertexId((*second)->stop_name);
+//----------------------------------------------------------------------------
+    void TransportRouter::SetEdgesBuses(std::vector<EdgeAditionInfo> &&edges_buses) {
+        edges_buses_ = std::move(edges_buses);
+    }
 
-            // Добавляем прямое ребро от from_id к to_id
-            TwoStopsLink direct_link(bus_route->bus_name, from_id, to_id, stop_distance);
-            const int direct_distance = tc_.GetDistanceBetweenStops((*first)->stop_name, (*second)->stop_name);
-            accumulated_distance_direct += direct_distance;
-            const double direct_link_time = wait_time_at_stop + CalculateTimeForDistance(
-                    accumulated_distance_direct);
-            const auto direct_edge_id = AddEdge({from_id, to_id, direct_link_time});
-            StoreLink(direct_link, direct_edge_id);
+//----------------------------------------------------------------------------
+    void TransportRouter::SetIdStopes(std::vector<std::string> &&id_stopes) {
+        id_stopes_ = id_stopes;
+    }
 
-            // Добавляем обратное ребро от to_id к from_id
-            TwoStopsLink reverse_link(bus_route->bus_name, to_id, from_id, stop_distance);
-            const int reverse_distance = tc_.GetDistanceBetweenStops((*second)->stop_name, (*first)->stop_name);
-            accumulated_distance_reverse += reverse_distance;
-            const double reverse_link_time = wait_time_at_stop + CalculateTimeForDistance(
-                    accumulated_distance_reverse);
-            const auto reverse_edge_id = AddEdge({to_id, from_id, reverse_link_time});
-            StoreLink(reverse_link, reverse_edge_id);
+//----------------------------------------------------------------------------
+    void TransportRouter::SetGraph(graph::DirectedWeightedGraph<double> &&graph) {
+        opt_graph_ = graph;
+    }
 
-            ++stop_distance;
+//----------------------------------------------------------------------------
+    const RoutingSettings &TransportRouter::GetRoutingSettings() const {
+        return routing_settings_;
+    }
 
-            edge_count_ = reverse_edge_id;
+//----------------------------------------------------------------------------
+    void TransportRouter::SetRoutingSettings(RoutingSettings &&routing_settings) {
+        routing_settings_ = std::move(routing_settings);
+    }
+
+//----------------------------------------------------------------------------
+    const std::unique_ptr<graph::Router<double>> &TransportRouter::GetRouter() const {
+        // граф создан
+        if (GetGraphIsNoInit()) {
+            std::cerr << " ! opt_graph_.has_value()" << std::endl;
+            throw ("! opt_graph_.has_value()");
         }
-    }
-}
-
-// Функция заполнения графа связями между остановками на кольцевом маршруте транспорта.
-void TransportCatalogueRouterGraph::FillWithCircleRouteStops(const transport_catalogue::BusRoute *bus_route) {
-    // Проходимся по всем остановкам маршрута.
-    for (auto start = bus_route->route_stops.begin(); start != bus_route->route_stops.end(); ++start) {
-        // Задаем расстояние до следующей остановки и накопленное расстояние.
-        size_t stop_distance = 1;
-        int accumulated_distance_direct = 0;
-
-        // Определяем время ожидания на остановке.
-        const auto wait_time_at_stop = static_cast<double>(rs_.bus_wait_time);
-
-        // Получаем идентификатор вершины, соответствующей текущей остановке, иначе кидаем исключение.
-        auto from_id = GetStopVertexId((*start)->stop_name);
-
-        // Повторяем для каждой смежной вершины
-        for (auto first = start, second = start + 1; second != bus_route->route_stops.end(); ++first, ++second) {
-            // Получаем идентификатор вершины, соответствующей следующей остановке, иначе кидаем исключение.
-            auto to_id = GetStopVertexId((*second)->stop_name);
-
-            // Задаем информацию о двусторонней дуге и добавляем ее в граф.
-            TwoStopsLink direct_link(bus_route->bus_name, from_id, to_id, stop_distance);
-            const int direct_distance = tc_.GetDistanceBetweenStops((*first)->stop_name, (*second)->stop_name);
-            accumulated_distance_direct += direct_distance;
-            const double direct_link_time = wait_time_at_stop + CalculateTimeForDistance(accumulated_distance_direct);
-            const auto direct_edge_id = AddEdge({from_id, to_id, direct_link_time});
-            StoreLink(direct_link, direct_edge_id);
-
-            ++stop_distance;
-
-            edge_count_ = direct_edge_id;
+        // создает маршрутизатор если его еще нет
+        if (!up_router_) {
+            up_router_ = std::make_unique<graph::Router<double>>(opt_graph_.value());
         }
+        return up_router_;
     }
-}
-
-// Функция регистрирует остановку на маршруте, если она еще не была зарегистрирована.
-graph::VertexId TransportCatalogueRouterGraph::RegisterStop(const StopOnRoute &stop) {
-    // Проверяем, была ли остановка на маршруте зарегистрирована. Если да, возвращаем идентификатор соответствующей вершины.
-    auto iter = stop_to_vertex_.find(stop);
-    if (iter != stop_to_vertex_.end()) {
-        return iter->second;
-    }
-
-    // Регистрируем новую остановку. Запоминаем соответствие между остановкой и вершиной графа.
-    auto result = vertex_id_count_;
-    stop_to_vertex_[stop] = vertex_id_count_;
-    vertex_to_stop_[vertex_id_count_] = stop;
-    ++vertex_id_count_;
-
-    return result;
-}
-
-// Функция проверяет наличие связи между двумя остановками на маршруте.
-std::optional<graph::EdgeId> TransportCatalogueRouterGraph::CheckLink(const TwoStopsLink &link) const {
-    // Проверяем, есть ли связь между двумя остановками на маршруте. Если да, возвращаем идентификатор ребра графа.
-    auto iter = stoplink_to_edge_.find(link);
-
-    if (iter != stoplink_to_edge_.end()) {
-        return iter->second;
-    }
-
-    return {};
-}
-
-// Функция сохраняет связь между двумя остановками на маршруте.
-graph::EdgeId TransportCatalogueRouterGraph::StoreLink(const TwoStopsLink &link, graph::EdgeId edge) {
-    // Сохраняем новую связь между двумя остановками на маршруте.
-    auto iter = edge_to_stoplink_.find(edge);
-    if (iter != edge_to_stoplink_.end()) {
-        return iter->first;
-    }
-
-    stoplink_to_edge_[link] = edge;
-    edge_to_stoplink_[edge] = link;
-
-    return edge;
-}
-
-// Функция вычисляет время, необходимое для пройденного расстояния.
-double TransportCatalogueRouterGraph::CalculateTimeForDistance(int distance) const {
-    return static_cast<double>(distance) / (rs_.bus_velocity * transport_catalogue::MET_MIN_RATIO);
-}
-
-// Функция возвращает идентификатор вершины графа, соответствующей остановке маршрута.
-graph::VertexId TransportCatalogueRouterGraph::GetStopVertexId(std::string_view stop_name) const {
-    // Получаем идентификатор вершины графа, соответствующей остановке маршрута.
-    // Если такой остановки не существует, кидаем исключение.
-    StopOnRoute stop{0, stop_name, {}};
-    auto iter = stop_to_vertex_.find(stop);
-
-    if (iter != stop_to_vertex_.end()) {
-        return iter->second;
-    }
-
-    throw std::logic_error("Error, no stop name: " + std::string(stop_name));
-}
-
-// Функция возвращает остановку маршрута по ее идентификатору.
-const TransportCatalogueRouterGraph::StopOnRoute &TransportCatalogueRouterGraph::GetStopById(graph::VertexId id) const {
-    return vertex_to_stop_.at(id);
-}
-
-// Функция возвращает время ожидания автобуса на остановке.
-double TransportCatalogueRouterGraph::GetBusWaitingTime() const {
-    return static_cast<double>(rs_.bus_wait_time);
-}
-
-// Функция возвращает связь между двумя остановками по идентификатору ребра графа.
-const TwoStopsLink &TransportCatalogueRouterGraph::GetLinkById(graph::EdgeId id) const {
-    auto iter = edge_to_stoplink_.find(id);
-
-    if (iter != edge_to_stoplink_.end()) {
-        return iter->second;
-    }
-
-    throw std::logic_error("Error fetching the TwoStopsLink, no Edge id: " + std::to_string(id));
-}
-
-// Функция строит маршрут между двумя остановками.
-std::optional<graph::Router<double>::RouteInfo>
-TransportCatalogueRouterGraph::BuildRoute(std::string_view from, std::string_view to) const {
-    // Усли нет построителя маршрутов, возвращаем пустое значение.
-    if (!router_ptr_) return {};
-
-    // Находим идентификаторы вершин, соответствующие начальной и конечной остановкам.
-    graph::VertexId from_id = GetStopVertexId(from);
-    graph::VertexId to_id = GetStopVertexId(to);
-
-    // Вызываем построитель маршрутов.
-    return router_ptr_->BuildRoute(from_id, to_id);
+//----------------------------------------------------------------------------
 }

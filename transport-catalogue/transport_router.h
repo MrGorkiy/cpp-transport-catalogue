@@ -1,114 +1,72 @@
 #pragma once
 
-#include "transport_catalogue.h"
+#include "graph.h"
 #include "router.h"
+#include "domain.h"
+#include "transport_catalogue.h"
+#include "unordered_map"
+#include "unordered_set"
 #include <memory>
 
-// Структура настроек маршрутизации
-struct RoutingSettings {
-    int bus_wait_time;
-    double bus_velocity;
-};
+namespace TransportRouter {
+    using namespace domain;
 
-// Структура TwoStopsLink, хранящая информацию о маршруте между двумя остановками
-struct TwoStopsLink {
-    std::string_view bus_name = {}; // Название маршрута
-    graph::VertexId stop_from = {}; // Идентификатор исходной остановки
-    graph::VertexId stop_to = {}; // Идентификатор конечной остановки
-    size_t number_of_stops = {}; // Количество пройденных остановок
+    class TransportRouter {
+    public:
+        using OptRouteInfo = std::optional<graph::Router<double>::RouteInfo>;
 
-    // Конструктор
-    explicit TwoStopsLink(std::string_view bus, graph::VertexId from, graph::VertexId to, size_t num) :
-            bus_name(bus), stop_from(from), stop_to(to), number_of_stops(num) {
-    }
+        // дополнительная информация о ребре
+        struct EdgeAditionInfo {
+            std::string bus_name; // имя автобуса едущего по ребру
+            size_t count_spans = 0; // кол-во пролетов между остановками в этом ребре
+        };
 
-    TwoStopsLink() = default;
+        TransportRouter() = default;
 
-    // Хэш-функция
-    size_t operator()(const TwoStopsLink &sor) const {
-        return hasher_num_(number_of_stops) + 43 * hasher_num_(sor.stop_from) +
-               43 * 43 * hasher_num_(sor.stop_to) + 43 * 43 * 43 * hasher_(bus_name);
-    }
+        // создает граф
+        void CreateGraph(const TransportCatalogue::TransportCatalogue &db);
 
-    // Оператор сравнения
-    bool operator()(const TwoStopsLink &lhs, const TwoStopsLink &rhs) const {
-        return lhs.bus_name == rhs.bus_name && lhs.stop_from == rhs.stop_from
-               && lhs.stop_to == rhs.stop_to && lhs.number_of_stops == rhs.number_of_stops;
-    }
+        // возвращает маршрут и статистику по нему
+        std::optional<RoutStat> GetRouteStat(size_t id_stop_from, size_t id_stop_to) const;
 
-private:
-    std::hash<size_t> hasher_num_;
-    std::hash<std::string_view> hasher_;
-};
+        // создает и возвращает маршрутизатор если его еще нет
+        const std::unique_ptr<graph::Router<double>> &GetRouter() const;
 
-// Класс TransportCatalogueRouterGraph, наследуемый от графа с взвешенными ребрами
-class TransportCatalogueRouterGraph : public graph::DirectedWeightedGraph<double> {
-public:
-    // Структура StopOnRoute, хранящая информацию об остановке на маршруте
-    struct StopOnRoute {
-        size_t stop_number; // Порядковый номер остановки на маршруте
-        std::string_view stop_name; // Название остановки
-        std::string_view bus_name; // Название маршрута, на котором находится остановка
+        // Граф не создан
+        bool GetGraphIsNoInit() const;
 
-        // Конструктор
-        explicit StopOnRoute(size_t num, std::string_view stop, std::string_view bus) : stop_number(num),
-                                                                                        stop_name(stop), bus_name(bus) {
-        }
+        void vInit(RoutingSettings routing_settings_, const TransportCatalogue::TransportCatalogue &t_c);
 
-        StopOnRoute() = default;
+        const std::vector<EdgeAditionInfo> &GetEdgesBuses() const;
 
-        // Хэш-функция
-        size_t operator()(const StopOnRoute &sor) const {
-            return hasher_num_(stop_number) + 43 * hasher_(sor.stop_name) + 43 * 43 * hasher_(sor.bus_name);
-        }
+        const std::vector<std::string> &GetIdStopes() const;
 
-        // Оператор сравнения
-        bool operator()(const StopOnRoute &lhs, const StopOnRoute &rhs) const {
-            return lhs.stop_name == rhs.stop_name && lhs.bus_name == rhs.bus_name && lhs.stop_number == rhs.stop_number;
-        }
+        const graph::DirectedWeightedGraph<double> &GetGraph() const;
+
+        void SetEdgesBuses(std::vector<EdgeAditionInfo> &&edges_buses);
+
+        void SetIdStopes(std::vector<std::string> &&id_stopes);
+
+        void SetGraph(graph::DirectedWeightedGraph<double> &&graph);
+
+        const RoutingSettings &GetRoutingSettings() const;
+
+        void SetRoutingSettings(RoutingSettings &&routing_settings);
 
     private:
-        std::hash<size_t> hasher_num_;
-        std::hash<std::string_view> hasher_;
+        // параметры маршрута скорость, ожидание
+        RoutingSettings routing_settings_;
+
+        // хранит дополнительная информация о ребре по индексу ребра
+        std::vector<EdgeAditionInfo> edges_buses_;
+
+        // хранит имена остановок по индексу
+        std::vector<std::string> id_stopes_;
+
+        // граф
+        std::optional<graph::DirectedWeightedGraph<double>> opt_graph_;
+
+        // маршрутизатор
+        mutable std::unique_ptr<graph::Router<double>> up_router_;
     };
-
-public:
-    TransportCatalogueRouterGraph(const transport_catalogue::TransportCatalogue &tc, RoutingSettings rs);
-
-    ~TransportCatalogueRouterGraph() = default;
-
-    std::optional<graph::Router<double>::RouteInfo> BuildRoute(std::string_view from, std::string_view to) const;
-
-    const StopOnRoute &GetStopById(graph::VertexId id) const;
-
-    const TwoStopsLink &GetLinkById(graph::EdgeId id) const;
-
-    double GetBusWaitingTime() const;
-
-private:
-    const transport_catalogue::TransportCatalogue &tc_;
-    RoutingSettings rs_;
-    graph::EdgeId edge_count_ = 0;
-    std::unique_ptr<graph::Router<double>> router_ptr_;
-
-    std::unordered_map<StopOnRoute, graph::VertexId, StopOnRoute, StopOnRoute> stop_to_vertex_;
-    std::unordered_map<size_t, StopOnRoute> vertex_to_stop_;
-    graph::VertexId vertex_id_count_ = 0;
-
-    std::unordered_map<TwoStopsLink, graph::EdgeId, TwoStopsLink, TwoStopsLink> stoplink_to_edge_;
-    std::unordered_map<graph::EdgeId, TwoStopsLink> edge_to_stoplink_;
-
-    graph::VertexId RegisterStop(const StopOnRoute &stop);
-
-    graph::EdgeId StoreLink(const TwoStopsLink &link, graph::EdgeId edge);
-
-    std::optional<graph::EdgeId> CheckLink(const TwoStopsLink &link) const;
-
-    graph::VertexId GetStopVertexId(std::string_view stop_name) const;
-
-    void FillWithReturnRouteStops(const transport_catalogue::BusRoute *bus_route);
-
-    void FillWithCircleRouteStops(const transport_catalogue::BusRoute *bus_route);
-
-    double CalculateTimeForDistance(int distance) const;
-};
+}

@@ -1,28 +1,47 @@
 #pragma once
 
-//#include "transport_catalogue.h"
-//#include "map_renderer.h"
-//#include "json_reader.h"
-//#include "router.h"
-//#include "svg.h"
-//#include <set>
-//#include <string_view>
-//
-//using namespace transport_catalogue;
-//
-//class RequestHandler {
-//public:
-//    RequestHandler(const TransportCatalogue& db, const MapRenderer& renderer, const JsonReader& reader)
-//        : db_(db), renderer_(renderer), json_reader_(reader) {
-//    }
-//
-//    std::optional<BusInfo> GetBusStat(const std::string_view& bus_name) const;
-//    const std::set<std::string_view>& GetBusesByStop(const std::string_view& stop_name) const;
-//    std::optional<graph::Router<double>::RouteInfo> GenerateRoute(std::string_view from_stop, std::string_view to_stop) const;
-//    void RenderMap(svg::Document& svg_map) const;
-//
-//private:
-//    const TransportCatalogue& db_;
-//    const MapRenderer& renderer_;
-//    const JsonReader& json_reader_;
-//};
+#include <unordered_set>
+#include <filesystem>
+
+#include "transport_catalogue.h"
+#include "domain.h"
+#include "map_renderer.h"
+#include "transport_router.h"
+
+class RequestHandler {
+
+public:
+    RequestHandler(TransportCatalogue::TransportCatalogue &t_c,
+                   TransportRouter::TransportRouter &t_r,
+                   renderer::MapRenderer &m_r);
+
+    // Возвращает информацию о маршруте (запрос Bus)
+    std::optional<domain::BusStat> GetBusStat(const std::string_view &bus_name) const;
+
+    // Возвращает информацию о маршруте (запрос Route)
+    std::optional<domain::RoutStat> GetRouteStat(std::string_view stop_from, std::string_view stop_to) const;
+
+    // Возвращает маршруты, проходящие через
+    std::optional<const std::unordered_set<const domain::Bus *> *>
+    GetBusesByStop(const std::string_view &stop_name) const;
+
+    std::vector<const domain::Bus *> GetBusesLex() const;
+
+    // Возвращает перечень уникальных остановок в лекс порядке через которые проходят маршруты
+    const std::vector<const domain::Stop *> GetUnicLexStopsIncludeBuses() const;
+
+    svg::Document RenderMap() const;
+
+    void CallDsrlz(const std::filesystem::path &path);
+
+    void CallSrlz(const std::filesystem::path &path) const;
+
+private:
+    domain::BusStat CreateBusStat(const domain::Bus *bus) const;
+
+    TransportCatalogue::TransportCatalogue &t_c_;
+
+    TransportRouter::TransportRouter &t_r_;
+
+    renderer::MapRenderer &m_r_;
+};

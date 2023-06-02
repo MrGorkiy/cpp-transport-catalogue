@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+import "map_renderer.proto";
+import "transport_router.proto";
+
+package t_c_srlz;
+
+message Coord {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message Stop {
+  string name = 1;
+  Coord coord = 2;
+  uint64 id = 3;
+}
+
+message Bus {
+  string name = 1;
+  repeated string list_name_stop = 2;
+  bool is_roundtrip = 3;
+}
+
+message StopsLenght {
+  string from_stop = 1;
+  string to_stop = 2;
+  uint64 lenght = 3;
+}
+
+message TransportCatalogue {
+  repeated Stop list_stop = 1;
+  repeated Bus list_bus = 2;
+  repeated StopsLenght list_stop_lenght = 3;
+  r_s_srlz.RenderSettings render_settings = 4;
+  t_r_srlz.TransportRouter t_r_ = 5;
+} 

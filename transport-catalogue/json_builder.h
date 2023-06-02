@@ -1,98 +1,107 @@
 #pragma once
 
+#include <sstream>
+#include <stack>
+
 #include "json.h"
-#include <optional>
-#include <string>
 
 namespace json {
+    class ArrayItemContext;
+
+    class KeyItemContext;
+
+    class DictItemContext;
 
     class Builder {
-    private:
-        std::optional<Node> root_;
-        std::vector<Node *> nodes_stack_;
-        std::optional<std::string> curr_key_;
-
-        bool IsStarted();
-
-        bool IsFinished();
-
-        bool IsBuilt();
-
-        bool built_ = false;
-
 
     public:
-        class DictItemContext;
+        Builder();
 
-        class DictKeyContext;
+        template<typename T = Builder>
+        T &Value(Node::Value value);
 
-        class ArrayItemContext;
-
-        class DictItemContext {
-        public:
-            explicit DictItemContext(Builder &builder) : builder_(builder) {
-            }
-
-            DictKeyContext Key(std::string key);
-
-            Builder &EndDict();
-
-        private:
-            Builder &builder_;
-        };
-
-        class DictKeyContext {
-        public:
-            explicit DictKeyContext(Builder &builder) : builder_(builder) {
-            }
-
-            DictItemContext Value(Node val);
-
-            DictItemContext StartDict();
-
-            ArrayItemContext StartArray();
-
-        private:
-            Builder &builder_;
-        };
-
-        class ArrayItemContext {
-        public:
-            explicit ArrayItemContext(Builder &builder) : builder_(builder) {
-            }
-
-            ArrayItemContext Value(Node val);
-
-            ArrayItemContext StartArray();
-
-            DictItemContext StartDict();
-
-            Builder &EndArray();
-
-        private:
-            Builder &builder_;
-        };
-
-        Builder() = default;
-
-        Builder &Value(Node val);
-
-        DictKeyContext Key(std::string key);
-
-        DictItemContext StartDict();
+        DictItemContext &StartDict();
 
         Builder &EndDict();
 
-        ArrayItemContext StartArray();
+        ArrayItemContext &StartArray();
 
         Builder &EndArray();
 
-        Node Build();
+        json::Node Build();
+
+        KeyItemContext &Key(std::string key);
 
     private:
-        [[nodiscard]] bool DoingDict() const;
+        Node root_;
+        bool expect_value = false;
+        bool init = false;
+        std::vector<Node *> nodes_stack_{&root_};
 
-        [[nodiscard]] bool DoingArray() const;
+        void IsReady();
 
+        void ExpectKey();
     };
+
+    template<typename T>
+    T &Builder::Value(Node::Value value) {
+        IsReady();
+        ExpectKey();
+        init = true;
+        if (nodes_stack_.back()->IsArray()) {
+            std::get<Array>(nodes_stack_.back()->GetValue()).emplace_back(value);
+        } else {
+            nodes_stack_.back()->GetValue() = value;
+        }
+        if (expect_value) {
+            nodes_stack_.pop_back();
+            expect_value = false;
+        }
+        return static_cast<T &>(*this);;
+    }
+
+    class DictItemContext : public Builder {
+    public:
+        template<typename T>
+        T Value(Node::Value value) = delete;
+
+        Builder &Value(Node::Value value) = delete;
+
+        DictItemContext &StartDict() = delete;
+
+        ArrayItemContext &StartArray() = delete;
+
+        Builder &EndArray() = delete;
+
+        json::Node Build() = delete;
+    };
+
+    class ArrayItemContext : public Builder {
+    public:
+        Builder &EndDict() = delete;
+
+        json::Node Build() = delete;
+
+        KeyItemContext &Key(std::string key) = delete;
+
+        ArrayItemContext &Value(Node::Value value) {
+            return Builder::Value<ArrayItemContext>(std::move(value));
+        }
+    };
+
+    class KeyItemContext : public Builder {
+    public:
+        Builder &EndDict() = delete;
+
+        Builder &EndArray() = delete;
+
+        json::Node Build() = delete;
+
+        KeyItemContext &Key(std::string key) = delete;
+
+        DictItemContext &Value(Node::Value value) {
+            return Builder::Value<DictItemContext>(std::move(value));
+        }
+    };
+
 }

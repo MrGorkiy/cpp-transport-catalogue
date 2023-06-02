@@ -1,19 +1,12 @@
 #include "domain.h"
-#include <iomanip>
 
-
-namespace transport_catalogue {
-
-    std::ostream &operator<<(std::ostream &os, const BusInfo &bi) {
-        using namespace std::literals;
-        double length = bi.route_length;
-
-        os << "Bus "s << bi.bus_name << ": "s << bi.stops_number << " stops on route, "s
-           << bi.unique_stops << " unique stops, "s << std::setprecision(6) << length << " route length, "s
-           << std::setprecision(6) << bi.curvature << " curvature"s << std::endl;
-
-        return os;
-    }
-
-
+double domain::ComputeDistance(const Stop *from_stop, const Stop *to_stop) {
+    return geo::ComputeDistance(from_stop->coord, to_stop->coord);
 }
+
+//----------------------------------------------------------------------------
+double domain::GetMetrMinFromKmH(double km_h) {
+    return km_h * (1000. / 60.);
+}
+//----------------------------------------------------------------------------
+

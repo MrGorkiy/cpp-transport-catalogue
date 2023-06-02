@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+import "graph.proto";
+
+package t_r_srlz;
+
+message RoutingSettings {
+  int32 bus_wait_time_minut = 1;
+  double bus_velocity = 2;
+}
+
+message EdgeAditionInfo {
+  string bus_name = 1;
+  uint64 count_spans = 2;
+}
+
+message TransportRouter {
+  RoutingSettings routing_settings = 1;
+  repeated EdgeAditionInfo edges_buses = 2;
+  repeated string id_stopes = 3;
+  Graph graph = 4;
+}
