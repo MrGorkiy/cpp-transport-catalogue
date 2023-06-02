@@ -7,7 +7,6 @@
 #include "request_handler.h"
 #include "transport_router.h"
 #include "serialization.h"
-//#include "tests.h"
 
 using namespace std;
 

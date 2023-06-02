@@ -3,17 +3,12 @@
 #include <filesystem>
 #include <iostream>
 
-//#include "json.h"
 #include "json_builder.h"
 #include "transport_catalogue.h"
 #include "transport_router.h"
 #include "request_handler.h"
 #include "map_renderer.h"
 
-/*
- * Здесь можно разместить код наполнения транспортного справочника данными из JSON,
- * а также код обработки запросов к базе и формирование массива ответов в формате JSON
-*/
 namespace JsonReader {
     using namespace std::literals;
 
