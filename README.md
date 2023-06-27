@@ -22,3 +22,5 @@
 ### Системные требования.
 
 С++20
+
+Автор: [MrGorkiy](https://github.com/MrGorkiy)
